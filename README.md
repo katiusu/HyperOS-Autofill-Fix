@@ -1,82 +1,203 @@
-# HyperOS Autofill Fix (小米 HyperOS 自动填充修复模块)
+# HyperOS Autofill Fix（小米 HyperOS 自动填充修复模块）
 
-![LSPosed Module](https://img.shields.com/badge/LSPosed-Module-brightgreen.svg)
-![Android](https://img.shields.com/badge/Android-14%2B-blue.svg)
+![LSPosed Module](https://img.shields.io/badge/LSPosed-Module-brightgreen.svg)
+![Android](https://img.shields.io/badge/Android-8.0%2B-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-orange.svg)
+![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)
 
-一个用于小米 **HyperOS**  的 LSPosed/Xposed 模块，旨在解决系统安全组件自动重置、清空或覆盖第三方自动填充服务（如 Bitwarden, KeePass, 1Password 等）的顽疾。
+一个用于小米 **HyperOS / MIUI** 的 LSPosed / Xposed 模块，解决系统安全组件反复重置、清空、
+覆盖第三方自动填充服务（Bitwarden、KeePass、1Password 等）的问题。**2.0.0 起自带一个 Miuix
+（HyperOS 设计语言）界面**，可以直接在手机上看状态、看拦截日志、调设置。
 
 ---
 
 ## 📌 问题背景
 
-在搭载 HyperOS 的设备上，小米安全组件 (com.miui.securitycenter) 经常会在后台强行将用户的第三方密码/自动填充服务（Autofill Service）清空或强制还原为小米密码管理器，导致用户需要频繁重新去设置中手动开启。
+在搭载 HyperOS 的设备上，小米安全组件（`com.miui.securitycenter`）经常会在后台把用户的第三方
+密码管理器 / 自动填充服务（Autofill Service）清空，或强制还原成小米自家的填充服务，导致用户需要
+反复回到设置里手动改回来。
 
-本模块通过对系统框架与设置存储底层进行多重 Hook 拦截，精准阻断非用户本意的重置行为。
+本模块通过对 **系统框架 + 设置存储** 的多层 Hook 拦截，精准阻断非用户本意的重置行为，同时对
+调用方伪造成「写入成功」，避免系统管家反复重试。
+
+---
+
+## ✨ 2.0.0 有什么
+
+- **四层拦截**：比 1.0.0 多一层，补上了旧式 `ContentProvider` 写入通道；
+- **参数自适应**：不写死参数下标，兼容 AOSP / MIUI 不同版本的方法重载；
+- **自带界面**：概览 / 日志 / 设置三页，Miuix + HyperOS 观感，可滑动切换；
+- **直观 + 原文双视图**：日志既能看排版后的中文说明，也能看与 `adb logcat` 完全一致的原行；
+- **完整日志链路**：被 Hook 进程通过显式广播把事件送到 App，本地落盘（最多 3000 条），
+  支持搜索、级别筛选、复制、清空；
+- **主题**：跟随系统 / 浅色 / 深色 / 动态取色（Monet，Android 12+）。
+
+完整历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ---
 
 ## 🛠️ 工作原理与核心特性
 
-- **多层级防御架构**：
-  1. **上层拦截** (`android.provider.Settings$Secure`)：拦截所有 `putString` / `putStringForUser` 方法对 `autofill_service` 的写入请求。
-  2. **数据库底层拦截** (`SettingsProvider`)：拦截 `PUT_secure` 类型的 `call` 方法，拦截包含非法清空值的 `Bundle` 传递。
-  3. **内存/状态机硬拦截** (`SettingsState`)：Hook 最底层的 `insertSettingLocked`，确保即使绕过上层也不会写入内存和 XML 数据库。
-- **兼容 Android 15 / 16 (HyperOS 2 / 3)**：
-  - 使用动态参数扫描算法，完美适配 HyperOS 中新增的多参数重载函数。
-- **智能过滤算法**：
-  - 🚨 **阻止拦截**：试图写入 `null`、空字符串或小米内置包名 (`com.miui.*`) 的重置行为。
-  - ✅ **放行用户正常修改**：用户主动在设置中选择其他合法的第三方密码管理器时，模块会自动放行。
+### 四层拦截
+
+| 层 | Hook 点 | 说明 |
+| :--- | :--- | :--- |
+| 1 | `android.provider.Settings$Secure.putString` / `putStringForUser` | 写入方进程内直接拦截 |
+| 2 | `com.android.providers.settings.SettingsProvider.call("PUT_secure", …)` | 所有进程写入设置的汇聚点 |
+| 3 | `SettingsState.insertSettingLocked(…)` | 设置存储最底层兜底，覆盖绕过 `call` 的直写 |
+| 4 | `SettingsProvider.insert` / `update` | 旧式 ContentProvider 通道 |
+
+### 判定规则（命中任一即丢弃本次写入）
+
+1. 值为空 / `null` / `0`（清空偏好）；
+2. 值不是合法的 `包名/类名`（`autofill_service` 必须含 `/`，不含一律视为脏数据）；
+3. 值指向小米自家组件（`com.miui.*` / `com.xiaomi.*`）。
+
+命中时对调用方**伪造成写入成功**（`Settings.Secure` 返回 `true`、`call` 返回空 `Bundle`），
+但设置数据库保持不变，因此不会触发系统管家的重试风暴。
+
+### 界面里的日志链路
+
+模块运行在 system_server / 设置存储 / 安全中心等被 Hook 的进程里，界面在自己的进程里，两者无法
+共享内存或私有文件，所以事件走**显式广播**：
+
+```
+Hook 命中 ──► ModuleLog ──┬─► XposedBridge.log（logcat，标签 HyperOSAutofillFix）
+                         └─► sendBroadcast(ACTION_LOG, setPackage(本应用))
+                                  └─► LogReceiver ──► LogStore（JSON Lines，最多 3000 条）
+                                          └─► StateFlow ──► Compose 界面
+```
+
+- 广播显式指定包名，不受 Android 8.0+ 隐式广播限制影响，也不会被其它应用收到；
+- 同一「层次 + 值」1 秒内只广播一次，避免系统管家重试时反复唤醒界面进程；
+- 所有事件**只在本机落盘**，不联网、不上传。
 
 ---
 
-## 📦 作用域配置 (Scope)
+## 📱 界面
 
-模块需要在 LSPosed 中勾选以下 **4 个关键作用域**（模块源码内置 `xposed_scope` 也会自动勾选）：
+| 页面 | 内容 |
+| :--- | :--- |
+| **概览** | 当前自动填充服务（异常时整卡切到错误配色）、拦截 / 放行 / 最近一条统计、模块已载入的进程、四层拦截说明 |
+| **日志** | 搜索（进程 / 层次 / 写入值）、全部 / 拦截 / 放行 / 信息筛选、直观与 logcat 原文双视图、顶栏一键清空 |
+| **设置** | 主题下拉、是否记录放行事件、默认视图、复制最近日志、清空日志、关于与隐私说明 |
+
+---
+
+## 📦 作用域配置（Scope）
+
+在 LSPosed 中勾选以下 **4 个作用域**（模块内置的 `xposed_scope` 通常会自动勾选）：
 
 | 作用域包名 | 组件说明 | 拦截目的 |
 | :--- | :--- | :--- |
-| **`android`** | 系统框架 (System Server) | 阻止系统框架层的自动清空调用 |
-| **`com.android.providers.settings`** | 设置存储 (Settings Provider) | 阻止底层数据库与内存的修改 |
-| **`com.android.settings`** | 系统设置 | 确保设置界面逻辑一致性 |
+| **`android`** | 系统框架（System Server） | 阻止系统框架层的自动清空调用 |
+| **`com.android.providers.settings`** | 设置存储（Settings Provider） | 阻止底层数据库与内存被改写 |
+| **`com.android.settings`** | 系统设置 | 保证设置界面侧的行为一致 |
 | **`com.miui.securitycenter`** | 手机管家 / 安全中心 | 阻止安全中心后台清洗策略 |
 
 ---
 
-## 🚀 安装与使用教程
+## 🚀 安装与使用
 
-1. **安装 APK**：编译或下载本模块的 APK 包并安装至手机。
-2. **启用模块**：打开 **LSPosed 管理器**，在模块列表中找到 **HyperOS Autofill Fix** 并开启。
-3. **确认作用域**：确保上述 4 个作用域均已勾选（通常会自动勾选）。
-4. **重启设备**：重启手机或软重启系统框架，使 Hook 逻辑生效。
-5. **设置自动填充**：前往手机 **系统设置 -> 密码与安全 -> 自动填充服务**，选择你的第三方密码管理器（如 Bitwarden）。
-
----
-
-## 🔍 日志调试 (Logcat)
-
-若想确认模块是否在后台成功拦截，可通过以下方式查看日志：
-
-### 方式一：LSPosed 管理器 (推荐)
-1. 打开 **LSPosed** -> 点击底部 **日志** 选项卡。
-2. 搜索关键字：`HyperOSAutofillFix`
-3. 日志示例：
-   - 🚨 `HyperOSAutofillFix [android]: 🚨 上层拦截成功! 阻止清空/重置，原试图写入值: [null]`
-   - ✅ `HyperOSAutofillFix [android]: ✅ 放行用户合法变更 -> com.x8bit.bitwarden`
-
-### 方式二：命令行 / ADB
-- **手机终端 (Root)**：`su -c "logcat | grep HyperOSAutofillFix"`
-- **电脑终端 (ADB)**：`adb logcat | grep HyperOSAutofillFix`
+1. **下载 APK**：从 [Releases](https://github.com/katiusu/HyperOS-Autofill-Fix/releases) 下载
+   `HyperOS-Autofill-Fix-2.0.0.apk`。
+2. **安装**：
+   - 如果手机上装的是 **用别的签名** 的旧版（例如 1.0.0），需要先卸载旧版，否则会报
+     `INSTALL_FAILED_UPDATE_INCOMPATIBLE`；
+   - 装完在 LSPosed 里重新启用一次本模块即可。
+3. **启用模块**：打开 LSPosed 管理器 → 模块 → 勾选 **HyperOS Autofill Fix**。
+4. **确认作用域**：确认上面 4 个作用域都已勾选。
+5. **重启设备**（或重启系统界面 + 设置存储进程）。
+6. **设置自动填充**：系统设置 → 密码与安全 → 自动填充服务，选择你的第三方密码管理器。
+7. **验证**：打开「自动填充修复」App，概览页能看到「已载入的进程」，日志页能看到拦截记录。
 
 ---
 
-## 🛠️ 项目编译环境
+## 🔍 日志与排错
 
-- **IDE**：Android Studio / JStudio (Android 端)
-- **编译工具**：Gradle (Kotlin DSL / Groovy)
-- **依赖库**：Xposed API 82+ (`de.robv.android.xposed:api:82`)
+**方式一：App 内（推荐）**
+
+「日志」页的「直观」视图按 `级别 / 时间 / 命中层次 / 写入值 / 来源进程` 排版；
+点顶栏图标切到「原文」视图，显示与下面这条命令完全一致的行。
+
+**方式二：logcat**
+
+```bash
+adb logcat -s HyperOSAutofillFix
+```
+
+- 拦截：`已拦截 [SettingsProvider.call(PUT_secure)] autofill_service = [com.miui.…]`
+- 放行：`放行 [Secure.putString] autofill_service = [com.x8bit.bitwarden/…]`
+- 模块载入：`信息 [ModuleInit]`
+
+**常见问题**
+
+| 现象 | 处理 |
+| :--- | :--- |
+| 概览页「已载入的进程」为空 | 模块没生效：确认 LSPosed 已启用、4 个作用域已勾选，然后重启手机 |
+| 日志页一直空白 | 同上；也可能是系统管家还没尝试改写（正常用一段时间就会出现） |
+| 安装时报签名冲突 | 先卸载旧版（版本 / 签名不同），再安装 |
+| 日志页 / 设置页打不开（历史问题） | 2.0.0 已修复，原因是 `androidx.activity` < 1.13.0 缺少 Miuix 需要的导航事件宿主 |
+
+---
+
+## 🧩 代码结构
+
+| 文件 | 作用 |
+| :--- | :--- |
+| `MainHook.java` | Xposed 入口，四层拦截逻辑 |
+| `ModuleLog.java` | 模块侧日志出口（logcat + 广播），含 Context 获取与限频 |
+| `App.kt` / `LogReceiver.kt` | Application 与广播接收器 |
+| `data/LogEvent.kt` / `data/LogStore.kt` | 事件模型与 JSON Lines 落盘仓库 |
+| `data/AppPrefs.kt` | 界面设置持久化 |
+| `ui/MainActivity.kt` | 只建立主题与界面状态持有者 |
+| `ui/HafApp.kt` | 应用外壳：唯一的 `Scaffold`（bars / snackbar / 弹窗宿主）+ 三页 `HorizontalPager` |
+| `ui/OverviewScreen.kt` / `ui/LogsScreen.kt` / `ui/SettingsScreen.kt` | 概览 / 日志 / 设置三个页面 |
+| `ui/UiPrefsState.kt` | 界面设置的唯一持有者（写回 SharedPreferences） |
+| `ui/Theme.kt` | MiuixTheme 封装（跟随系统 / 浅色 / 深色 / 动态取色） |
+
+---
+
+## 🔧 实现要点
+
+- **参数自适应扫描**：不依赖固定下标，兼容 AOSP / MIUI 不同版本的参数顺序与重载；
+- **返回值类型安全**：`insertSettingLocked` 返回 `String`（旧值），不再返回 `Boolean`，
+  避免调用方 `ClassCastException`；
+- **热路径快速失败**：未命中时只做一次字符串比较即返回，零额外分配；
+- **日志限频去重**：同一「层次 + 值」1 秒内只打一条日志 / 只广播一次；
+- **界面即 Miuix 标准用法**：`ThemeController` 驱动 `MiuixTheme`，页面统一 `LazyColumn` +
+  `SmallTitle` + `Card`，日志行用 `BasicComponent`，二次确认用 `WindowDialog`。
+
+---
+
+## 🏗️ 构建
+
+```bash
+./gradlew assembleDebug     # 或 gradle assembleDebug
+./gradlew assembleRelease   # 产物未签名，用 apksigner 签一下即可
+```
+
+技术栈：Kotlin 2.4.20 + Compose（Kotlin Compose 插件）+ Miuix 0.9.3 +
+AGP 8.9.2 / Gradle 8.11.1 / JDK 17，minSdk 26。
+
+两个构建上的坑，改依赖前请先读：
+
+1. **`androidx.activity` 必须 ≥ 1.13.0**：Miuix 0.9.3 的 `SearchBar`、对话框、下拉/列表弹窗内部都会
+   调用 `NavigationBackHandler`，它需要 `LocalNavigationEventDispatcherOwner`；1.9.x / 1.10.x /
+   1.11.x 的 `ComponentActivity` 没有实现该 owner，页面里一出现这些组件就抛
+   `IllegalStateException: No NavigationEventDispatcher was provided`（表现为日志页 / 设置页打不开）。
+2. **`gradle.properties` 里的 `android.experimental.disableCompileSdkChecks=true`**：
+   Miuix 0.9.x 的 AAR 元数据声明 `minCompileSdk=37`，而 AGP 8.9.2 最高只支持 compileSdk 36，
+   本工程界面没有用到 36/37 的新 API，因此关闭校验并用 `compileSdk = 34` 构建。
+   升级到 AGP 9.1+ / Gradle 9.x 后可以删掉这一行并把 `compileSdk` 提到 37。
+
+release 构建通过 `app/proguard-rules.pro` 保留 `MainHook` / `App` / `LogReceiver` 类名
+（`assets/xposed_init` 以字符串引用 `MainHook`）。
 
 ---
 
 ## 📜 开源协议
 
-本项目基于 [MIT License](LICENSE) 协议开源，仅供技术交流与学习使用。
+本项目基于 [MIT License](LICENSE) 开源，仅供技术交流与学习使用。
+
+界面基于 [Miuix](https://github.com/compose-miuix-ui/miuix)（Apache-2.0）。

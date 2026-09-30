@@ -1,34 +1,21 @@
-# Gradle files
+# Gradle / 构建产物
 .gradle/
 build/
-
-# Local configuration file (sdk path, etc)
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
 local.properties
-
-# Log/OS Files
-*.log
-
-# Android Studio generated files and folders
 captures/
 .externalNativeBuild/
 .cxx/
-*.aab
 *.apk
-output-metadata.json
+*.aab
+*.idsig
 
-# IntelliJ
-*.iml
+# IDE
 .idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
-
-# Keystore files
-*.jks
-*.keystore
-
-# Google Services (e.g. APIs or Firebase)
-google-services.json
-
-# Android Profiling
+*.iml
 *.hprof
+
+# 系统
+.DS_Store
+Thumbs.db

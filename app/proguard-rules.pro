@@ -1,21 +1,19 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Xposed 模块入口类由 assets/xposed_init 以字符串形式引用，
+# R8 无法感知，必须显式保留类名与方法名。
+-keep class com.katiusu.hyperautofillfix.MainHook { public *; }
+-keepnames class com.katiusu.hyperautofillfix.MainHook
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Xposed API 只在编译期提供（compileOnly），运行时由框架注入，禁止警告与混淆
+-keep class de.robv.android.xposed.** { *; }
+-dontwarn de.robv.android.xposed.**
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# 清单里声明的组件（R8 一般会自动保留，这里再兜底一次）
+-keep class com.katiusu.hyperautofillfix.App { *; }
+-keep class com.katiusu.hyperautofillfix.LogReceiver { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# 模块侧日志类会被 Hook 进程直接调用，保留名字便于排查
+-keepnames class com.katiusu.hyperautofillfix.ModuleLog
+
+# Compose 运行时在反射/内联场景下会引用一些可选类，缺失时不应中断构建
+-dontwarn androidx.compose.**
+-dontwarn kotlinx.**

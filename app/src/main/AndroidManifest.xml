@@ -2,19 +2,42 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
+        android:name=".App"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="HyperOS Autofill Fix"
-        android:supportsRtl="true">
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.HyperAutofillFix">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 接收模块从被 Hook 进程广播过来的日志事件。
+             发送方是 system_server / 设置存储 / 系统管家等系统进程，因此必须 exported。 -->
+        <receiver
+            android:name=".LogReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.katiusu.hyperautofillfix.action.LOG" />
+            </intent-filter>
+        </receiver>
 
         <meta-data
             android:name="xposedmodule"
             android:value="true" />
-        
+
         <meta-data
             android:name="xposeddescription"
             android:value="拦截 HyperOS 对自动填入服务偏好的修改，使非小米的密码管理器可用。" />
-        
+
         <meta-data
             android:name="xposedminversion"
             android:value="82" />

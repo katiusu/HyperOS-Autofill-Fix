@@ -5,6 +5,40 @@
 
 ---
 
+## [2.1.0] — 2026-10-01
+
+底栏换成悬浮液态玻璃，并把「打开设置」的落点改成真正要改的那一页。
+
+### 新增
+
+- **悬浮液态玻璃底栏**：原本贴底的 `NavigationBar` 换成 `FloatingNavigationBar`
+  （圆角与阴影取组件自带的 `FloatingToolbarDefaults.CornerRadius` /
+  `FloatingNavigationBarDefaults.ShadowElevation`，不自己编尺寸），并引入 `miuix-blur`：
+  页面内容先录进 `rememberLayerBackdrop` / `Modifier.layerBackdrop`，底栏再用 `Modifier.textureBlur`
+  贴着同一圆角做背景模糊，`color` 设为透明让玻璃透出，滚动时内容从玻璃后面穿过。
+- **「关于」里加入 GitHub 仓库**：显示 `github.com/katiusu/HyperOS-Autofill-Fix`，点击用浏览器打开。
+
+### 变更
+
+- **「打开系统设置」→「打开密码与账户」**：入口目标改为
+  `com.android.settings.Settings$AccountDashboardActivity`（设置 → 语言与输入法 → 密码与账户，
+  AOSP 里 `account_dashboard_title` = “Passwords & accounts”），自动填充服务开关就在这一页；
+  设备上没有该入口时按 `android.settings.CREDENTIAL_PROVIDER` → 自动填充服务选择器 → 设置首页逐级退回。
+- 三页的滚动内容不再用 `Scaffold` 的底栏内边距，改为各自接收 `contentBottomPadding`
+  作为 `contentPadding`，让内容真正铺到屏幕底部（玻璃背后才有东西可模糊），
+  同时在滚动末端把最后一条让到玻璃条上方。
+- **低版本降级**：`RuntimeShader` 只有 API 33+ 才有，代码用 `isRuntimeShaderSupported()` 做能力检测；
+  不支持时既不创建 backdrop 也不挂模糊，底栏退回 `surfaceContainer` 不透明配色。
+  `miuix-blur` 的 AAR 把 minSdk 写成 33，本应用保留 **minSdk 26**，用
+  `tools:overrideLibrary="top.yukonga.miuix.kmp.blur"` 放行（官方 blur 指南对低 minSdk 应用的建议做法）。
+- 版本号 `2.0.0` → `2.1.0`（versionCode `3` → `2026100101`）。
+  该日期式 versionCode 会触发 lint 的 `HighAppVersionCode`（认为接近 Int 上限），
+  但它仍在 Int 范围内，已在 `app/build.gradle.kts` 的 `lint {}` 里显式关闭这一条并注明原因。
+- 界面依赖新增 `miuix-blur-android`。
+- 概览页按钮文案随之改为「打开密码与账户」。
+
+---
+
 ## [2.0.0] — 2026-09-30
 
 从 1.0.0 以来的第一次大版本：模块逻辑重写 + 全新界面。

@@ -1,5 +1,8 @@
 package com.katiusu.hyperautofillfix.ui
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,7 +12,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.katiusu.hyperautofillfix.BuildConfig
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -27,15 +31,21 @@ import top.yukonga.miuix.kmp.utils.overScrollVertical
 /** 主题下拉的可选项，下标与 [ThemeMode] 常量一一对应。 */
 private val THEME_OPTIONS = listOf("跟随系统", "浅色", "深色", "动态取色")
 
+/** 项目仓库地址，展示在「关于」分组里，点一下用浏览器打开。 */
+private const val GITHUB_URL = "https://github.com/katiusu/HyperOS-Autofill-Fix"
+private const val GITHUB_URL_LABEL = "github.com/katiusu/HyperOS-Autofill-Fix"
+
 @Composable
 fun SettingsScreen(
     state: UiPrefsState,
     eventCount: Int,
     scrollBehavior: ScrollBehavior,
+    contentBottomPadding: Dp,
     onCopyLogs: () -> Unit,
     onRequestClear: () -> Unit,
 ) {
     val listState = rememberLazyListState()
+    val context = LocalContext.current
 
     LazyColumn(
         state = listState,
@@ -43,7 +53,8 @@ fun SettingsScreen(
             .fillMaxSize()
             .overScrollVertical()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        // 悬浮玻璃底栏不占布局高度，这里让滚动内容在末端自己让开
+        contentPadding = PaddingValues(bottom = contentBottomPadding),
     ) {
         item(key = "appearance") {
             SmallTitle(text = "外观")
@@ -127,6 +138,11 @@ fun SettingsScreen(
                         )
                     },
                 )
+                ArrowPreference(
+                    title = "GitHub 仓库",
+                    summary = GITHUB_URL_LABEL,
+                    onClick = { openUrl(context, GITHUB_URL) },
+                )
                 BasicComponent(title = "Hook 入口", summary = "com.katiusu.hyperautofillfix.MainHook")
                 BasicComponent(title = "日志标签", summary = "HyperOSAutofillFix")
                 BasicComponent(
@@ -151,5 +167,16 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+}
+
+/** 用系统浏览器打开链接；设备上没有任何能处理 http 的应用时静默忽略。 */
+private fun openUrl(context: Context, url: String) {
+    try {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    } catch (_: Throwable) {
+        // 没有浏览器可用
     }
 }

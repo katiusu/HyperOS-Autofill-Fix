@@ -1,5 +1,6 @@
 package com.katiusu.hyperautofillfix.ui
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.katiusu.hyperautofillfix.data.LogEvent
 import com.katiusu.hyperautofillfix.data.LogLevel
@@ -51,6 +53,7 @@ private const val AUTOFILL_SERVICE = "autofill_service"
 fun OverviewScreen(
     events: List<LogEvent>,
     scrollBehavior: ScrollBehavior,
+    contentBottomPadding: Dp,
     onOpenLogs: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -86,7 +89,8 @@ fun OverviewScreen(
             .fillMaxSize()
             .overScrollVertical()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        // 底栏是悬浮的：内容一直铺到屏幕底部，只在滚动末端用内边距把最后一条让到玻璃条上方
+        contentPadding = PaddingValues(bottom = contentBottomPadding),
     ) {
         item(key = "state") {
             SmallTitle(text = "当前状态")
@@ -116,7 +120,7 @@ fun OverviewScreen(
                 Spacer(Modifier.size(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(onClick = { openAutofillSettings(context) }) {
-                        Text("打开系统设置")
+                        Text("打开密码与账户")
                     }
                     TextButton(text = "重新读取", onClick = { refreshKey++ })
                 }
@@ -225,10 +229,26 @@ private fun readAutofillService(context: Context): String? = try {
     null
 }
 
+/**
+ * 打开「语言与输入法 → 密码与账户」。自动填充服务的开关就在这一页里。
+ *
+ * HyperOS / MIUI 的入口是 `com.android.settings.Settings$AccountDashboardActivity`
+ * （AOSP 里 `account_dashboard_title` = “Passwords & accounts”），所以优先显式指定组件；
+ * 设备上没有这个入口时按 action 逐个退回，最后兜底到设置首页。
+ */
 private fun openAutofillSettings(context: Context) {
+    val accountPage = Intent().setComponent(
+        ComponentName(
+            "com.android.settings",
+            "com.android.settings.Settings\$AccountDashboardActivity",
+        ),
+    )
     val candidates = listOf(
+        accountPage,
+        // AOSP 14+ 同一页面的语义 action，部分 ROM 只保留了这个过滤器
+        Intent("android.settings.CREDENTIAL_PROVIDER"),
+        // 兜底：直接打开自动填充服务选择器，再退回设置首页
         Intent(Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE),
-        Intent("android.settings.SECURITY_SETTINGS"),
         Intent(Settings.ACTION_SETTINGS),
     )
     for (intent in candidates) {

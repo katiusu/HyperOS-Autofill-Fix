@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- miuix-blur 的 AAR 把 minSdk 写成了 33（它内部依赖 RuntimeShader）。
+         这里保留 minSdk 26，用 overrideLibrary 放行，运行时靠 isRuntimeShaderSupported()
+         能力检测：低于 API 33 时根本不挂 textureBlur，底栏退回不透明配色。
+         官方 blur 指南给低 minSdk 应用的建议就是这个做法。
+         如果哪天确认放弃 Android 12 及以下，可以把 minSdk 直接提到 33 并删掉这一行。 -->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
 
     <application
         android:name=".App"

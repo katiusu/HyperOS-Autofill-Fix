@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.katiusu.hyperautofillfix.data.LogEvent
 import com.katiusu.hyperautofillfix.data.LogLevel
@@ -59,6 +60,7 @@ fun LogsScreen(
     rawView: Boolean,
     showAllowed: Boolean,
     scrollBehavior: ScrollBehavior,
+    contentBottomPadding: Dp,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
@@ -99,7 +101,8 @@ fun LogsScreen(
             .fillMaxSize()
             .overScrollVertical()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        // 悬浮玻璃底栏不占布局高度，这里让滚动内容在末端自己让开
+        contentPadding = PaddingValues(bottom = contentBottomPadding),
     ) {
         item(key = "search") {
             SearchBar(

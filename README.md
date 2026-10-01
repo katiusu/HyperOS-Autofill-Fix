@@ -2,12 +2,13 @@
 
 ![LSPosed Module](https://img.shields.io/badge/LSPosed-Module-brightgreen.svg)
 ![Android](https://img.shields.io/badge/Android-8.0%2B-blue.svg)
-![Version](https://img.shields.io/badge/version-2.0.0-orange.svg)
+![Version](https://img.shields.io/badge/version-2.1.0-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)
 
 一个用于小米 **HyperOS / MIUI** 的 LSPosed / Xposed 模块，解决系统安全组件反复重置、清空、
 覆盖第三方自动填充服务（Bitwarden、KeePass、1Password 等）的问题。**2.0.0 起自带一个 Miuix
-（HyperOS 设计语言）界面**，可以直接在手机上看状态、看拦截日志、调设置。
+（HyperOS 设计语言）界面**，可以直接在手机上看状态、看拦截日志、调设置；
+**2.1.0 起底栏换成悬浮的液态玻璃条**。
 
 ---
 
@@ -22,11 +23,13 @@
 
 ---
 
-## ✨ 2.0.0 有什么
+## ✨ 功能亮点
 
 - **四层拦截**：比 1.0.0 多一层，补上了旧式 `ContentProvider` 写入通道；
 - **参数自适应**：不写死参数下标，兼容 AOSP / MIUI 不同版本的方法重载；
 - **自带界面**：概览 / 日志 / 设置三页，Miuix + HyperOS 观感，可滑动切换；
+- **悬浮液态玻璃底栏**：2.1.0 起用 `FloatingNavigationBar`（圆角 + 阴影）配合 `miuix-blur`，
+  页面内容从玻璃后面穿过；API < 33 自动退回不透明底栏；
 - **直观 + 原文双视图**：日志既能看排版后的中文说明，也能看与 `adb logcat` 完全一致的原行；
 - **完整日志链路**：被 Hook 进程通过显式广播把事件送到 App，本地落盘（最多 3000 条），
   支持搜索、级别筛选、复制、清空；
@@ -78,9 +81,11 @@ Hook 命中 ──► ModuleLog ──┬─► XposedBridge.log（logcat，标�
 
 | 页面 | 内容 |
 | :--- | :--- |
-| **概览** | 当前自动填充服务（异常时整卡切到错误配色）、拦截 / 放行 / 最近一条统计、模块已载入的进程、四层拦截说明 |
+| **概览** | 当前自动填充服务（异常时整卡切到错误配色）、拦截 / 放行 / 最近一条统计、模块已载入的进程、四层拦截说明、直达「密码与账户」的按钮 |
 | **日志** | 搜索（进程 / 层次 / 写入值）、全部 / 拦截 / 放行 / 信息筛选、直观与 logcat 原文双视图、顶栏一键清空 |
-| **设置** | 主题下拉、是否记录放行事件、默认视图、复制最近日志、清空日志、关于与隐私说明 |
+| **设置** | 主题下拉、是否记录放行事件、默认视图、复制最近日志、清空日志、关于（含 GitHub 仓库链接）与隐私说明 |
+
+底栏是悬浮的液态玻璃条：内容一直铺到屏幕底部并从玻璃后面穿过，滚动到末端时再让开玻璃条。
 
 ---
 
@@ -100,7 +105,7 @@ Hook 命中 ──► ModuleLog ──┬─► XposedBridge.log（logcat，标�
 ## 🚀 安装与使用
 
 1. **下载 APK**：从 [Releases](https://github.com/katiusu/HyperOS-Autofill-Fix/releases) 下载
-   `HyperOS-Autofill-Fix-2.0.0.apk`。
+   `HyperOS-Autofill-Fix-2.1.0.apk`。
 2. **安装**：
    - 如果手机上装的是 **用别的签名** 的旧版（例如 1.0.0），需要先卸载旧版，否则会报
      `INSTALL_FAILED_UPDATE_INCOMPATIBLE`；
@@ -108,7 +113,8 @@ Hook 命中 ──► ModuleLog ──┬─► XposedBridge.log（logcat，标�
 3. **启用模块**：打开 LSPosed 管理器 → 模块 → 勾选 **HyperOS Autofill Fix**。
 4. **确认作用域**：确认上面 4 个作用域都已勾选。
 5. **重启设备**（或重启系统界面 + 设置存储进程）。
-6. **设置自动填充**：系统设置 → 密码与安全 → 自动填充服务，选择你的第三方密码管理器。
+6. **设置自动填充**：系统设置 → **语言与输入法 → 密码与账户** → 自动填充服务，
+   选择你的第三方密码管理器（App 概览页的「打开密码与账户」按钮可直达这一页）。
 7. **验证**：打开「自动填充修复」App，概览页能看到「已载入的进程」，日志页能看到拦截记录。
 
 ---
@@ -138,6 +144,7 @@ adb logcat -s HyperOSAutofillFix
 | 日志页一直空白 | 同上；也可能是系统管家还没尝试改写（正常用一段时间就会出现） |
 | 安装时报签名冲突 | 先卸载旧版（版本 / 签名不同），再安装 |
 | 日志页 / 设置页打不开（历史问题） | 2.0.0 已修复，原因是 `androidx.activity` < 1.13.0 缺少 Miuix 需要的导航事件宿主 |
+| 底栏没有玻璃效果 | Android 12 及以下没有 `RuntimeShader`，底栏会按设计退回不透明配色 |
 
 ---
 
@@ -151,7 +158,7 @@ adb logcat -s HyperOSAutofillFix
 | `data/LogEvent.kt` / `data/LogStore.kt` | 事件模型与 JSON Lines 落盘仓库 |
 | `data/AppPrefs.kt` | 界面设置持久化 |
 | `ui/MainActivity.kt` | 只建立主题与界面状态持有者 |
-| `ui/HafApp.kt` | 应用外壳：唯一的 `Scaffold`（bars / snackbar / 弹窗宿主）+ 三页 `HorizontalPager` |
+| `ui/HafApp.kt` | 应用外壳：唯一的 `Scaffold` + 三页 `HorizontalPager` + 悬浮液态玻璃底栏（`GlassNavigationBar`） |
 | `ui/OverviewScreen.kt` / `ui/LogsScreen.kt` / `ui/SettingsScreen.kt` | 概览 / 日志 / 设置三个页面 |
 | `ui/UiPrefsState.kt` | 界面设置的唯一持有者（写回 SharedPreferences） |
 | `ui/Theme.kt` | MiuixTheme 封装（跟随系统 / 浅色 / 深色 / 动态取色） |
@@ -165,6 +172,10 @@ adb logcat -s HyperOSAutofillFix
   避免调用方 `ClassCastException`；
 - **热路径快速失败**：未命中时只做一次字符串比较即返回，零额外分配；
 - **日志限频去重**：同一「层次 + 值」1 秒内只打一条日志 / 只广播一次；
+- **液态玻璃底栏**：页面容器挂 `Modifier.layerBackdrop` 把内容录进 `GraphicsLayer`，
+  底栏再用 `Modifier.textureBlur` 贴着同一个圆角形状（取组件的 `FloatingToolbarDefaults.CornerRadius`）做背景模糊，
+  `color = Color.Transparent` 让玻璃透出；`isRuntimeShaderSupported()` 不通过时
+  完全不创建 backdrop、底栏用 `surfaceContainer` 不透明配色；
 - **界面即 Miuix 标准用法**：`ThemeController` 驱动 `MiuixTheme`，页面统一 `LazyColumn` +
   `SmallTitle` + `Card`，日志行用 `BasicComponent`，二次确认用 `WindowDialog`。
 
@@ -177,10 +188,11 @@ adb logcat -s HyperOSAutofillFix
 ./gradlew assembleRelease   # 产物未签名，用 apksigner 签一下即可
 ```
 
-技术栈：Kotlin 2.4.20 + Compose（Kotlin Compose 插件）+ Miuix 0.9.3 +
-AGP 8.9.2 / Gradle 8.11.1 / JDK 17，minSdk 26。
+技术栈：Kotlin 2.4.20 + Compose（Kotlin Compose 插件）+ Miuix 0.9.3
+（`miuix-ui` / `miuix-preference` / `miuix-icons` / `miuix-blur`）+
+AGP 8.9.2 / Gradle 9.3.1 / JDK 17+，minSdk 26。
 
-两个构建上的坑，改依赖前请先读：
+三个构建上的坑，改依赖前请先读：
 
 1. **`androidx.activity` 必须 ≥ 1.13.0**：Miuix 0.9.3 的 `SearchBar`、对话框、下拉/列表弹窗内部都会
    调用 `NavigationBackHandler`，它需要 `LocalNavigationEventDispatcherOwner`；1.9.x / 1.10.x /
@@ -190,6 +202,11 @@ AGP 8.9.2 / Gradle 8.11.1 / JDK 17，minSdk 26。
    Miuix 0.9.x 的 AAR 元数据声明 `minCompileSdk=37`，而 AGP 8.9.2 最高只支持 compileSdk 36，
    本工程界面没有用到 36/37 的新 API，因此关闭校验并用 `compileSdk = 34` 构建。
    升级到 AGP 9.1+ / Gradle 9.x 后可以删掉这一行并把 `compileSdk` 提到 37。
+3. **`miuix-blur` 的 AAR 声明 `minSdk 33`**：它内部依赖 `RuntimeShader`（API 33+）。
+   本工程保留 minSdk 26，在 `AndroidManifest.xml` 里用
+   `tools:overrideLibrary="top.yukonga.miuix.kmp.blur"` 放行，运行时用
+   `isRuntimeShaderSupported()` 做能力检测（低于 33 既不创建 backdrop 也不挂 `textureBlur`）。
+   如果哪天确认放弃 Android 12 及以下，可以直接把 `minSdk` 提到 33 并删掉那一行。
 
 release 构建通过 `app/proguard-rules.pro` 保留 `MainHook` / `App` / `LogReceiver` 类名
 （`assets/xposed_init` 以字符串引用 `MainHook`）。

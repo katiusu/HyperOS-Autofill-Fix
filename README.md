@@ -172,7 +172,7 @@ adb logcat -s HyperOSAutofillFix
   避免调用方 `ClassCastException`；
 - **热路径快速失败**：未命中时只做一次字符串比较即返回，零额外分配；
 - **日志限频去重**：同一「层次 + 值」1 秒内只打一条日志 / 只广播一次；
-- **液态玻璃底栏**：页面容器挂 `Modifier.layerBackdrop` 把内容录进 `GraphicsLayer`，
+- **悬浮毛玻璃底栏**：页面容器挂 `Modifier.layerBackdrop` 把内容录进 `GraphicsLayer`，
   底栏再用 `Modifier.textureBlur` 贴着同一个圆角形状（取组件的 `FloatingToolbarDefaults.CornerRadius`）做背景模糊，
   `color = Color.Transparent` 让玻璃透出；`isRuntimeShaderSupported()` 不通过时
   完全不创建 backdrop、底栏用 `surfaceContainer` 不透明配色；

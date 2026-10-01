@@ -8,7 +8,7 @@
 一个用于小米 **HyperOS / MIUI** 的 LSPosed / Xposed 模块，解决系统安全组件反复重置、清空、
 覆盖第三方自动填充服务（Bitwarden、KeePass、1Password 等）的问题。**2.0.0 起自带一个 Miuix
 （HyperOS 设计语言）界面**，可以直接在手机上看状态、看拦截日志、调设置；
-**2.1.0 起底栏换成悬浮的液态玻璃条**。
+**2.1.0 起底栏换成悬浮的毛玻璃条**。
 
 ---
 
@@ -28,8 +28,9 @@
 - **四层拦截**：比 1.0.0 多一层，补上了旧式 `ContentProvider` 写入通道；
 - **参数自适应**：不写死参数下标，兼容 AOSP / MIUI 不同版本的方法重载；
 - **自带界面**：概览 / 日志 / 设置三页，Miuix + HyperOS 观感，可滑动切换；
-- **悬浮液态玻璃底栏**：2.1.0 起用 `FloatingNavigationBar`（圆角 + 阴影）配合 `miuix-blur`，
-  页面内容从玻璃后面穿过；API < 33 自动退回不透明底栏；
+- **悬浮毛玻璃底栏**：2.1.0 起用 `FloatingNavigationBar`（圆角 + 阴影）配合 `miuix-blur`，
+  页面内容从毛玻璃后面穿过；API < 33 自动退回不透明底栏
+  （只对背景做高斯模糊 + 叠一层半透明底色，**没有边缘折射与高光**，所以是"毛玻璃"，不是"液态玻璃"）；
 - **直观 + 原文双视图**：日志既能看排版后的中文说明，也能看与 `adb logcat` 完全一致的原行；
 - **完整日志链路**：被 Hook 进程通过显式广播把事件送到 App，本地落盘（最多 3000 条），
   支持搜索、级别筛选、复制、清空；
@@ -85,7 +86,7 @@ Hook 命中 ──► ModuleLog ──┬─► XposedBridge.log（logcat，标�
 | **日志** | 搜索（进程 / 层次 / 写入值）、全部 / 拦截 / 放行 / 信息筛选、直观与 logcat 原文双视图、顶栏一键清空 |
 | **设置** | 主题下拉、是否记录放行事件、默认视图、复制最近日志、清空日志、关于（含 GitHub 仓库链接）与隐私说明 |
 
-底栏是悬浮的液态玻璃条：内容一直铺到屏幕底部并从玻璃后面穿过，滚动到末端时再让开玻璃条。
+底栏是悬浮的毛玻璃条：内容一直铺到屏幕底部并从它后面穿过，滚动到末端时再让开底栏。
 
 ---
 
@@ -144,7 +145,7 @@ adb logcat -s HyperOSAutofillFix
 | 日志页一直空白 | 同上；也可能是系统管家还没尝试改写（正常用一段时间就会出现） |
 | 安装时报签名冲突 | 先卸载旧版（版本 / 签名不同），再安装 |
 | 日志页 / 设置页打不开（历史问题） | 2.0.0 已修复，原因是 `androidx.activity` < 1.13.0 缺少 Miuix 需要的导航事件宿主 |
-| 底栏没有玻璃效果 | Android 12 及以下没有 `RuntimeShader`，底栏会按设计退回不透明配色 |
+| 底栏没有模糊效果 | Android 12 及以下没有 `RuntimeShader`，底栏会按设计退回不透明配色 |
 
 ---
 
@@ -158,7 +159,7 @@ adb logcat -s HyperOSAutofillFix
 | `data/LogEvent.kt` / `data/LogStore.kt` | 事件模型与 JSON Lines 落盘仓库 |
 | `data/AppPrefs.kt` | 界面设置持久化 |
 | `ui/MainActivity.kt` | 只建立主题与界面状态持有者 |
-| `ui/HafApp.kt` | 应用外壳：唯一的 `Scaffold` + 三页 `HorizontalPager` + 悬浮液态玻璃底栏（`GlassNavigationBar`） |
+| `ui/HafApp.kt` | 应用外壳：唯一的 `Scaffold` + 三页 `HorizontalPager` + 悬浮毛玻璃底栏（`GlassNavigationBar`） |
 | `ui/OverviewScreen.kt` / `ui/LogsScreen.kt` / `ui/SettingsScreen.kt` | 概览 / 日志 / 设置三个页面 |
 | `ui/UiPrefsState.kt` | 界面设置的唯一持有者（写回 SharedPreferences） |
 | `ui/Theme.kt` | MiuixTheme 封装（跟随系统 / 浅色 / 深色 / 动态取色） |
@@ -176,6 +177,9 @@ adb logcat -s HyperOSAutofillFix
   底栏再用 `Modifier.textureBlur` 贴着同一个圆角形状（取组件的 `FloatingToolbarDefaults.CornerRadius`）做背景模糊，
   `color = Color.Transparent` 让玻璃透出；`isRuntimeShaderSupported()` 不通过时
   完全不创建 backdrop、底栏用 `surfaceContainer` 不透明配色；
+- **为什么叫"毛玻璃"而不是"液态玻璃"**：`miuix-blur` 只提供背景高斯模糊（`textureBlur`），
+  **没有边缘折射、没有高光描边**，也就没有液态玻璃那种把背景"掰弯"的观感；
+  真正的液态玻璃需要 AGSL 折射着色器（`RuntimeShader`）+ 描边高光，本版没有做；
 - **界面即 Miuix 标准用法**：`ThemeController` 驱动 `MiuixTheme`，页面统一 `LazyColumn` +
   `SmallTitle` + `Card`，日志行用 `BasicComponent`，二次确认用 `WindowDialog`。
 

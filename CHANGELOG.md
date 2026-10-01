@@ -7,15 +7,17 @@
 
 ## [2.1.0] — 2026-10-01
 
-底栏换成悬浮液态玻璃，并把「打开设置」的落点改成真正要改的那一页。
+底栏换成悬浮毛玻璃，并把「打开设置」的落点改成真正要改的那一页。
 
 ### 新增
 
-- **悬浮液态玻璃底栏**：原本贴底的 `NavigationBar` 换成 `FloatingNavigationBar`
+- **悬浮毛玻璃底栏**：原本贴底的 `NavigationBar` 换成 `FloatingNavigationBar`
   （圆角与阴影取组件自带的 `FloatingToolbarDefaults.CornerRadius` /
   `FloatingNavigationBarDefaults.ShadowElevation`，不自己编尺寸），并引入 `miuix-blur`：
   页面内容先录进 `rememberLayerBackdrop` / `Modifier.layerBackdrop`，底栏再用 `Modifier.textureBlur`
   贴着同一圆角做背景模糊，`color` 设为透明让玻璃透出，滚动时内容从玻璃后面穿过。
+  只做背景模糊 + 一层半透明底色，**没有边缘折射与高光描边**，所以是"毛玻璃"而不是"液态玻璃"
+  （后者需要 AGSL 折射着色器 + 描边高光）。
 - **「关于」里加入 GitHub 仓库**：显示 `github.com/katiusu/HyperOS-Autofill-Fix`，点击用浏览器打开。
 
 ### 变更
@@ -25,7 +27,7 @@
   AOSP 里 `account_dashboard_title` = “Passwords & accounts”），自动填充服务开关就在这一页；
   设备上没有该入口时按 `android.settings.CREDENTIAL_PROVIDER` → 自动填充服务选择器 → 设置首页逐级退回。
 - 三页的滚动内容不再用 `Scaffold` 的底栏内边距，改为各自接收 `contentBottomPadding`
-  作为 `contentPadding`，让内容真正铺到屏幕底部（玻璃背后才有东西可模糊），
+  作为 `contentPadding`，让内容真正铺到屏幕底部（毛玻璃背后才有东西可模糊），
   同时在滚动末端把最后一条让到玻璃条上方。
 - **低版本降级**：`RuntimeShader` 只有 API 33+ 才有，代码用 `isRuntimeShaderSupported()` 做能力检测；
   不支持时既不创建 backdrop 也不挂模糊，底栏退回 `surfaceContainer` 不透明配色。

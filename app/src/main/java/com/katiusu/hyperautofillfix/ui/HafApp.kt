@@ -23,11 +23,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.katiusu.hyperautofillfix.data.LogStore
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.highlight.Highlight
+import com.kyant.backdrop.isRenderEffectSupported
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBar
 import top.yukonga.miuix.kmp.basic.FloatingNavigationBarDefaults
@@ -41,13 +51,6 @@ import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
-import top.yukonga.miuix.kmp.blur.BlendColorEntry
-import top.yukonga.miuix.kmp.blur.BlurDefaults
-import top.yukonga.miuix.kmp.blur.LayerBackdrop
-import top.yukonga.miuix.kmp.blur.isRuntimeShaderSupported
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
-import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.File
@@ -61,6 +64,15 @@ private const val PAGE_OVERVIEW = 0
 private const val PAGE_LOGS = 1
 private const val PAGE_SETTINGS = 2
 
+/**
+ * 底栏模糊半径。backdrop 只提供原语、没有任何尺寸 Defaults，
+ * 这里取与 2.1.0（miuix-blur 版）接近的强度，保证只换渲染器、不换观感。
+ */
+private val NAV_BLUR_RADIUS = 14.dp
+
+/** 叠在模糊之上、内容之下的容器色透明度：太高会盖掉模糊，太低在明暗主题下都可能让图标读不清。 */
+private const val NAV_TINT_ALPHA = 0.55f
+
 private data class Destination(val icon: ImageVector, val label: String, val largeTitle: String)
 
 private val DESTINATIONS = listOf(
@@ -73,8 +85,11 @@ private val DESTINATIONS = listOf(
  * 应用外壳：唯一的 Scaffold（提供 bars、snackbar 与弹窗宿主）+ HorizontalPager 承载三页。
  * 跨页面的状态（主题、日志视图、清空确认）都提升到这里，页面本身只接收值和回调。
  *
- * 底栏是悬浮的液态玻璃条：页面内容先录进 [LayerBackdrop]，底栏再对这一层做 [textureBlur]，
- * 因此滚动时内容会从玻璃后面穿过。RuntimeShader 只有 API 33+ 才有，低版本自动降级为不透明底栏。
+ * 底栏是悬浮的**毛玻璃**条：页面内容先录进 [Backdrop]，底栏再用 `drawBackdrop` 对这一层做模糊
+ * （AndroidLiquidGlass / Backdrop 的模糊渲染比 miuix-blur 干净）。没有边缘折射、也没有高光描边，
+ * 所以它是毛玻璃，不是液态玻璃；底栏形状与圆角仍由 Miuix 的 `FloatingNavigationBar` 决定。
+ * 模糊走 RenderEffect（API 31+，见 [isRenderEffectSupported]），低于门槛时不建 backdrop、
+ * 底栏退回不透明配色。
  */
 @Composable
 fun HafApp(state: UiPrefsState) {
@@ -89,16 +104,23 @@ fun HafApp(state: UiPrefsState) {
     val currentPage = pagerState.currentPage
     var showClearConfirm by remember { mutableStateOf(false) }
 
-    // 能力检测：API 33 以下没有 RuntimeShader，textureBlur 会静默失效。
-    // 这种情况下既不创建 backdrop、也不挂 layerBackdrop，省掉每帧一次的图层录制；底栏退回不透明配色。
-    // isRuntimeShaderSupported() 在 Android 上只是一次 Build.VERSION.SDK_INT 比较，用不着 remember。
-    val glassSupported = isRuntimeShaderSupported()
-    val backdrop: LayerBackdrop? = if (glassSupported) {
-        // 先铺一层不透明底色再录内容：内容有透明区域时，模糊会把颜色扩散进透明区（官方文档点名的问题）
-        rememberLayerBackdrop {
+    // 能力检测：模糊走 RenderEffect（API 31+）。低于门槛时既不创建 backdrop、也不挂 layerBackdrop，
+    // 省掉每帧一次的图层录制，底栏退回不透明配色。
+    // isRenderEffectSupported() 在 Android 上只是一次 Build.VERSION.SDK_INT 比较，用不着 remember。
+    val glassSupported = isRenderEffectSupported()
+    // backdrop 2.0.0 的 rememberLayerBackdrop 把 onDraw 当作 remember 的 key：
+    // 传内联 lambda 会在每次重组时重建图层、重置录制定位，所以这里 remember 成稳定引用。
+    val backdropDraw: ContentDrawScope.() -> Unit = remember(scheme.surface) {
+        {
+            // 先铺一层不透明底色再录内容：内容有透明区域时，模糊会把颜色扩散进透明区
             drawRect(scheme.surface)
             drawContent()
         }
+    }
+    // 录制侧要用具体类型 LayerBackdrop：Modifier.layerBackdrop() 只接收它；
+    // 绘制侧的 drawBackdrop() 收的是 Backdrop 接口，LayerBackdrop 本身就是它的实现。
+    val backdrop: LayerBackdrop? = if (glassSupported) {
+        rememberLayerBackdrop(onDraw = backdropDraw)
     } else {
         null
     }
@@ -239,15 +261,17 @@ fun HafApp(state: UiPrefsState) {
 }
 
 /**
- * 液态玻璃底栏：贴着 [FloatingNavigationBar] 的圆角形状做背景模糊。
+ * 悬浮毛玻璃底栏：贴着 [FloatingNavigationBar] 的圆角形状做背景模糊。
  *
  * [FloatingNavigationBar] 内部先画 squircle 背景、再应用调用方传入的 modifier，
- * 所以这里传进去的 [textureBlur] 恰好画在背景之上、图标之下；把 color 设为透明即可让玻璃透出。
- * 不支持 blur 的机器回退到主题的 surfaceContainer，保证图标始终可读。
+ * 所以这里传进去的玻璃恰好画在背景之上、图标之下；把 color 设为透明即可让玻璃透出。
+ * 模糊用 AndroidLiquidGlass（Backdrop）的 `vibrancy() + blur()`：边缘处理与降采样比 miuix-blur 干净，
+ * 但仍然只是"模糊 + 一点边缘高光"，没有折射——所以这里是毛玻璃，不是液态玻璃。
+ * 不支持 RenderEffect 的机器回退到主题的 surfaceContainer，保证图标始终可读。
  */
 @Composable
 private fun GlassNavigationBar(
-    backdrop: LayerBackdrop?,
+    backdrop: Backdrop?,
     currentPage: Int,
     onSelect: (Int) -> Unit,
 ) {
@@ -256,18 +280,23 @@ private fun GlassNavigationBar(
     // 否则玻璃边缘会和底栏圆角错位。
     val cornerRadius = FloatingToolbarDefaults.CornerRadius
     val shape = RoundedCornerShape(cornerRadius)
-    // 模糊之上再叠一层半透明 surface：纯模糊在明暗主题和花哨壁纸下都可能让图标看不清
-    val glassColors = BlurDefaults.blurColors(
-        blendColors = listOf(BlendColorEntry(color = scheme.surface.copy(alpha = 0.6f))),
-    )
 
     FloatingNavigationBar(
         modifier = if (backdrop != null) {
-            Modifier.textureBlur(
+            Modifier.drawBackdrop(
                 backdrop = backdrop,
-                shape = shape,
-                blurRadius = BlurDefaults.BlurRadius,
-                colors = glassColors,
+                shape = { shape },
+                effects = {
+                    // vibrancy 提饱和，避免模糊后的内容发灰；blur 的半径按 dp 换算成像素。
+                    vibrancy()
+                    blur(NAV_BLUR_RADIUS.toPx())
+                },
+                // 一点边缘高光，让玻璃有厚度感；它不是折射，不构成"液态玻璃"。
+                highlight = { Highlight.Default },
+                // 阴影交给 Miuix 的 shadowElevation，避免两层阴影叠加。
+                shadow = null,
+                // 模糊之上、内容之下的半透明容器色：纯模糊在明暗主题下都可能让图标读不清。
+                onDrawSurface = { drawRect(scheme.surfaceContainer.copy(alpha = NAV_TINT_ALPHA)) },
             )
         } else {
             Modifier

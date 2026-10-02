@@ -10,6 +10,10 @@ android {
     namespace = "com.katiusu.hyperautofillfix"
     // Miuix 0.9.x 的 AAR 元数据声明 minCompileSdk = 37，而 AGP 8.9.2 最高支持 36；
     // 界面没有用到 36/37 的新 API，因此用 34 构建并在 gradle.properties 里关闭该校验。
+    // 注意：android/skills 的 edge-to-edge 要求 targetSdk ≥ 35，但本容器暂时做不到 ——
+    // 唯一能跑通的 aapt2 是手工编的 arm64 2.19，它解析不了 API 35 平台的 resources.arsc
+    //（error: illegal map type 'string'），build-tools;35.0.0 自带的 aapt2 是 x86、加载器直接拒绝。
+    // 代码层面已按 edge-to-edge 写好，等构建环境能上 35 时只需改这三行。
     compileSdk = 34
     buildToolsVersion = "34.0.0"
 
@@ -17,8 +21,8 @@ android {
         applicationId = "com.katiusu.hyperautofillfix"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2026100101
-        versionName = "2.1.0"
+        versionCode = 2026100102
+        versionName = "2.1.1"
     }
 
     buildTypes {
@@ -69,8 +73,8 @@ dependencies {
     implementation(libs.miuix.ui)
     implementation(libs.miuix.preference)
     implementation(libs.miuix.icons)
-    // 液态玻璃底栏：backdrop 捕获 + textureBlur（API < 33 时由代码降级为不透明底栏）
-    implementation(libs.miuix.blur)
+    // 液态玻璃底栏的模糊渲染：Kyant0/AndroidLiquidGlass（backdrop）
+    implementation(libs.kyant.backdrop)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

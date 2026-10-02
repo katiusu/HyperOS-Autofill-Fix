@@ -5,6 +5,53 @@
 
 ---
 
+## [2.1.1] — 2026-10-01
+
+底栏的模糊渲染换库，并修掉日志搜索的一个数据丢失缺陷。
+
+### 修复
+
+- **日志搜索：回车后关键词「消失」**。根因不在本页的状态管理，而在 Miuix 的 `InputField`：
+  它在**收起搜索且仍有焦点**时会自己调 `onQueryChange("")` 把 query 清掉
+  （`SearchBar.kt` 里 `LaunchedEffect(expanded)` 的 `else if (focused)` 分支）。
+  本页原先把回车映射成「收起搜索」，于是刚输入的关键词被组件清空，列表也跟着恢复成全部。
+  现在回车只收键盘、保持展开（在 Miuix 里 `expanded` 就是「正在搜索」），
+  关键词与筛选结果都不再丢；**点建议项也是同一个坑**（收起 → 清空），一并修掉。
+  退出搜索仍由返回键完成（`SearchBar` 内部的 `NavigationBackHandler`）。
+- 没有改动搜索的其它交互：建议列表、清除按钮、四档筛选都保持原样。
+
+### 变更
+
+- **底栏模糊改用 AndroidLiquidGlass**（`io.github.kyant0:backdrop-android:2.0.0`），
+  移除 `miuix-blur`：后者的模糊在边缘与降采样上有渲染问题，前者的 `vibrancy() + blur()`
+  渲染更干净。底栏的形状 / 圆角 / 阴影仍取 Miuix 组件的 Defaults，半透明容器色叠在模糊之上，
+  图标可读性不变。
+  **观感仍是毛玻璃**（模糊 + 一点边缘高光，没有折射），所以照旧不叫"液态玻璃"。
+- 能力门槛从 `RuntimeShader`（API 33）降到 `RenderEffect`（API 31）：API 31+ 都能吃到模糊；
+  低于 31 时不建 backdrop、底栏退回不透明配色。
+  `miuix-blur` 的 AAR 声明 minSdk 33 而引入的 `tools:overrideLibrary` 也随之删除（backdrop 的 AAR 是 minSdk 21）。
+- `backdrop` 钉在 **2.0.0**：2.0.1 会把 Compose 抬到 1.12.0，而 androidx Compose 1.12.0 要求 AGP ≥ 9.1
+  （本项目 AGP 8.9.2）。两个版本库源码一致，只差 Compose 依赖。
+- **edge-to-edge（全屏）**：按 `android/skills` 的 `edge-to-edge` skill 逐条核对后补齐 ——
+  - 系统栏图标改为跟随**应用内**的明暗选择。`ComponentActivity.enableEdgeToEdge()` 默认用
+    `SystemBarStyle.auto()`，它只看系统 dark mode；而本应用允许在设置里强制浅色 / 深色，
+    两者不一致时会出现「浅底 + 白图标」。现在 `HafTheme` 会按当前主题下发显式的
+    `SystemBarStyle.light/dark`（`Theme.kt`）。
+  - 顺带关掉了系统叠在导航栏上的半透明底：androidx 只在 `auto` 样式下打开
+    `isNavigationBarContrastEnforced`（`EdgeToEdgeApi29.setUp` 的 `navStyle.nightMode == 0`），
+    改成显式样式即自动关闭 —— 悬浮底栏的玻璃才能一路铺到屏幕底部。
+  - 其余检查项本来就符合，未改动：唯一的 Activity 已在 `onCreate` 调 `enableEdgeToEdge()`；
+    manifest 已有 `adjustResize`；列表用 `contentPadding` 让开系统栏（而不是给父容器加 padding）；
+    顶栏玻璃带本身就覆盖状态栏区域，图标在其上对比充足；输入框在列表首项、键盘盖不到。
+  - ⚠️ skill 的前置条件 **`targetSdk ≥ 35` 本容器无法满足**：唯一能跑通的 `aapt2` 是手工编的
+    arm64 **2.19**，它解析不了 API 35 平台的 `resources.arsc`
+    （实测 `error: illegal map type 'string'`），而 `build-tools;35.0.0` 自带的 aapt2 是 x86、
+    被 arm64 加载器直接拒绝（`bad machine`）。因此 compileSdk / targetSdk 保持 34，
+    代码层面已按 edge-to-edge 写好；构建环境能上 35 时改 `app/build.gradle.kts` 三行即可。
+- 版本号 `2.1.0` → `2.1.1`（versionCode `2026100101` → `2026100102`）。
+
+---
+
 ## [2.1.0] — 2026-10-01
 
 底栏换成悬浮毛玻璃，并把「打开设置」的落点改成真正要改的那一页。

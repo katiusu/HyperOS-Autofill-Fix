@@ -2,13 +2,13 @@
 
 ![LSPosed Module](https://img.shields.io/badge/LSPosed-Module-brightgreen.svg)
 ![Android](https://img.shields.io/badge/Android-8.0%2B-blue.svg)
-![Version](https://img.shields.io/badge/version-2.1.0-orange.svg)
+![Version](https://img.shields.io/badge/version-2.1.1-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)
 
 一个用于小米 **HyperOS / MIUI** 的 LSPosed / Xposed 模块，解决系统安全组件反复重置、清空、
 覆盖第三方自动填充服务（Bitwarden、KeePass、1Password 等）的问题。**2.0.0 起自带一个 Miuix
 （HyperOS 设计语言）界面**，可以直接在手机上看状态、看拦截日志、调设置；
-**2.1.0 起底栏换成悬浮的毛玻璃条**。
+**2.1.0 起底栏换成悬浮的毛玻璃条**（2.1.1 起模糊渲染改用 AndroidLiquidGlass）。
 
 ---
 
@@ -28,9 +28,10 @@
 - **四层拦截**：比 1.0.0 多一层，补上了旧式 `ContentProvider` 写入通道；
 - **参数自适应**：不写死参数下标，兼容 AOSP / MIUI 不同版本的方法重载；
 - **自带界面**：概览 / 日志 / 设置三页，Miuix + HyperOS 观感，可滑动切换；
-- **悬浮毛玻璃底栏**：2.1.0 起用 `FloatingNavigationBar`（圆角 + 阴影）配合 `miuix-blur`，
-  页面内容从毛玻璃后面穿过；API < 33 自动退回不透明底栏
-  （只对背景做高斯模糊 + 叠一层半透明底色，**没有边缘折射与高光**，所以是"毛玻璃"，不是"液态玻璃"）；
+- **悬浮毛玻璃底栏**：2.1.0 起用 `FloatingNavigationBar`（圆角 + 阴影）配合
+  [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass)（`io.github.kyant0:backdrop-android`）
+  的 `vibrancy() + blur()` 做模糊，页面内容从毛玻璃后面穿过；API < 31 自动退回不透明底栏
+  （只有背景模糊 + 一点边缘高光，**没有边缘折射**，所以是"毛玻璃"，不是"液态玻璃"）；
 - **直观 + 原文双视图**：日志既能看排版后的中文说明，也能看与 `adb logcat` 完全一致的原行；
 - **完整日志链路**：被 Hook 进程通过显式广播把事件送到 App，本地落盘（最多 3000 条），
   支持搜索、级别筛选、复制、清空；
@@ -106,7 +107,7 @@ Hook 命中 ──► ModuleLog ──┬─► XposedBridge.log（logcat，标�
 ## 🚀 安装与使用
 
 1. **下载 APK**：从 [Releases](https://github.com/katiusu/HyperOS-Autofill-Fix/releases) 下载
-   `HyperOS-Autofill-Fix-2.1.0.apk`。
+   `HyperOS-Autofill-Fix-2.1.1.apk`。
 2. **安装**：
    - 如果手机上装的是 **用别的签名** 的旧版（例如 1.0.0），需要先卸载旧版，否则会报
      `INSTALL_FAILED_UPDATE_INCOMPATIBLE`；
@@ -145,7 +146,7 @@ adb logcat -s HyperOSAutofillFix
 | 日志页一直空白 | 同上；也可能是系统管家还没尝试改写（正常用一段时间就会出现） |
 | 安装时报签名冲突 | 先卸载旧版（版本 / 签名不同），再安装 |
 | 日志页 / 设置页打不开（历史问题） | 2.0.0 已修复，原因是 `androidx.activity` < 1.13.0 缺少 Miuix 需要的导航事件宿主 |
-| 底栏没有模糊效果 | Android 12 及以下没有 `RuntimeShader`，底栏会按设计退回不透明配色 |
+| 底栏没有模糊效果 | Android 11 及以下没有 `RenderEffect`，底栏会按设计退回不透明配色 |
 
 ---
 
@@ -174,12 +175,20 @@ adb logcat -s HyperOSAutofillFix
 - **热路径快速失败**：未命中时只做一次字符串比较即返回，零额外分配；
 - **日志限频去重**：同一「层次 + 值」1 秒内只打一条日志 / 只广播一次；
 - **悬浮毛玻璃底栏**：页面容器挂 `Modifier.layerBackdrop` 把内容录进 `GraphicsLayer`，
-  底栏再用 `Modifier.textureBlur` 贴着同一个圆角形状（取组件的 `FloatingToolbarDefaults.CornerRadius`）做背景模糊，
-  `color = Color.Transparent` 让玻璃透出；`isRuntimeShaderSupported()` 不通过时
+  底栏再用 AndroidLiquidGlass 的 `Modifier.drawBackdrop`（`effects = { vibrancy(); blur(...) }`、
+  `highlight = { Highlight.Default }`、`onDrawSurface` 叠一层半透明容器色）贴着同一个圆角形状
+  （取组件的 `FloatingToolbarDefaults.CornerRadius`）做背景模糊，
+  `color = Color.Transparent` 让玻璃透出；`isRenderEffectSupported()` 不通过时
   完全不创建 backdrop、底栏用 `surfaceContainer` 不透明配色；
-- **为什么叫"毛玻璃"而不是"液态玻璃"**：`miuix-blur` 只提供背景高斯模糊（`textureBlur`），
-  **没有边缘折射、没有高光描边**，也就没有液态玻璃那种把背景"掰弯"的观感；
+- **为什么叫"毛玻璃"而不是"液态玻璃"**：这里只做背景模糊 + 一点边缘高光，
+  **没有边缘折射**，也就没有液态玻璃那种把背景"掰弯"的观感；
   真正的液态玻璃需要 AGSL 折射着色器（`RuntimeShader`）+ 描边高光，本版没有做；
+- **edge-to-edge（全屏）**：唯一的 Activity 在 `onCreate` 调 `enableEdgeToEdge()`，内容用
+  `contentPadding` 让开系统栏（顶栏的玻璃带本身就覆盖状态栏区域）。系统栏图标跟随**应用内**的明暗选择
+  （按主题下发 `SystemBarStyle.light/dark`），所以在设置里强制浅色 / 深色时不会出现「浅底 + 白图标」；
+  用显式样式还会自动关掉系统给导航栏叠的那层半透明底，悬浮底栏的玻璃能一路铺到屏幕底部。
+  按 `android/skills` 的 `edge-to-edge` 要求应满足 `targetSdk ≥ 35`，本容器因 aapt2 版本受限仍是 34
+  （见「构建」里的说明）；
 - **界面即 Miuix 标准用法**：`ThemeController` 驱动 `MiuixTheme`，页面统一 `LazyColumn` +
   `SmallTitle` + `Card`，日志行用 `BasicComponent`，二次确认用 `WindowDialog`。
 
@@ -193,10 +202,12 @@ adb logcat -s HyperOSAutofillFix
 ```
 
 技术栈：Kotlin 2.4.20 + Compose（Kotlin Compose 插件）+ Miuix 0.9.3
-（`miuix-ui` / `miuix-preference` / `miuix-icons` / `miuix-blur`）+
-AGP 8.9.2 / Gradle 9.3.1 / JDK 17+，minSdk 26。
+（`miuix-ui` / `miuix-preference` / `miuix-icons`）+
+[AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass)
+（`io.github.kyant0:backdrop-android:2.0.0`，AAR minSdk 21）+ AGP 8.9.2 / Gradle 9.3.1 / JDK 17+，
+`minSdk 26` / `targetSdk 34` / `compileSdk 34`。
 
-三个构建上的坑，改依赖前请先读：
+四个构建上的坑，改依赖前请先读：
 
 1. **`androidx.activity` 必须 ≥ 1.13.0**：Miuix 0.9.3 的 `SearchBar`、对话框、下拉/列表弹窗内部都会
    调用 `NavigationBackHandler`，它需要 `LocalNavigationEventDispatcherOwner`；1.9.x / 1.10.x /
@@ -206,11 +217,20 @@ AGP 8.9.2 / Gradle 9.3.1 / JDK 17+，minSdk 26。
    Miuix 0.9.x 的 AAR 元数据声明 `minCompileSdk=37`，而 AGP 8.9.2 最高只支持 compileSdk 36，
    本工程界面没有用到 36/37 的新 API，因此关闭校验并用 `compileSdk = 34` 构建。
    升级到 AGP 9.1+ / Gradle 9.x 后可以删掉这一行并把 `compileSdk` 提到 37。
-3. **`miuix-blur` 的 AAR 声明 `minSdk 33`**：它内部依赖 `RuntimeShader`（API 33+）。
-   本工程保留 minSdk 26，在 `AndroidManifest.xml` 里用
-   `tools:overrideLibrary="top.yukonga.miuix.kmp.blur"` 放行，运行时用
-   `isRuntimeShaderSupported()` 做能力检测（低于 33 既不创建 backdrop 也不挂 `textureBlur`）。
-   如果哪天确认放弃 Android 12 及以下，可以直接把 `minSdk` 提到 33 并删掉那一行。
+3. **`backdrop` 停在 2.0.0，不要随手升 2.0.1**：2.0.1 依赖 Compose 1.12.0，而 androidx
+   Compose 1.12.0 的 AAR 元数据要求 **AGP ≥ 9.1.0**，本项目 AGP 8.9.2 会在
+   `checkDebugAarMetadata` 直接失败。2.0.0 只依赖 Compose 1.11.0（低于 Miuix 的 1.11.1），
+   两版库源码一致。等工程升到 AGP 9.1+ 之后可以一起升上去。
+   （它的 AAR 是 `minSdk 21`，所以不再需要 `tools:overrideLibrary`。）
+4. **这个容器暂时上不了 `compileSdk 35`**（因此 `targetSdk` 只能停在 34）：
+   `android/skills` 的 `edge-to-edge` 要求 `targetSdk ≥ 35`，但 SDK 里能跑的 `aapt2` 只有
+   手工编的 arm64 **2.19**（`/opt/android-sdk/aapt2-arm64/aapt2`，由
+   `/root/.gradle/gradle.properties` 的 `android.aapt2FromMavenOverride` 指过去），
+   它解析不了 API 35 平台的 `resources.arsc`：
+   `error: illegal map type 'string' (22)` → `failed to load include path …/platforms/android-35/android.jar`。
+   `build-tools;35.0.0` 自带的 aapt2 是 **x86-64**，在这个 arm64 容器里会被加载器直接拒绝（`bad machine`），
+   所以换不了。等构建环境提供 arm64 的新版 aapt2 后，把 `app/build.gradle.kts` 里的
+   `compileSdk` / `buildToolsVersion` / `targetSdk` 三行改成 35 即可（代码已经按 edge-to-edge 写好）。
 
 release 构建通过 `app/proguard-rules.pro` 保留 `MainHook` / `App` / `LogReceiver` 类名
 （`assets/xposed_init` 以字符串引用 `MainHook`）。

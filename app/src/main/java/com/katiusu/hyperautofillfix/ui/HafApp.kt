@@ -46,6 +46,8 @@ import top.yukonga.miuix.kmp.basic.FloatingToolbarDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.NavigationBar
+import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
@@ -85,9 +87,10 @@ private val DESTINATIONS = listOf(
  * 应用外壳：唯一的 Scaffold（提供 bars、snackbar 与弹窗宿主）+ HorizontalPager 承载三页。
  * 跨页面的状态（主题、日志视图、清空确认）都提升到这里，页面本身只接收值和回调。
  *
- * 底栏是悬浮的**毛玻璃**条：页面内容先录进 [Backdrop]，底栏再用 `drawBackdrop` 对这一层做模糊
- * （AndroidLiquidGlass / Backdrop 的模糊渲染比 miuix-blur 干净）。没有边缘折射、也没有高光描边，
- * 所以它是毛玻璃，不是液态玻璃；底栏形状与圆角仍由 Miuix 的 `FloatingNavigationBar` 决定。
+ * 底栏有两种形态，由设置里的「悬浮底栏」切换（见 [GlassNavigationBar] / [PlainNavigationBar]）：
+ * - **悬浮毛玻璃**（默认）：页面内容先录进 [Backdrop]，底栏再用 `drawBackdrop` 对这一层做模糊
+ *   （AndroidLiquidGlass / Backdrop 的模糊渲染比 miuix-blur 干净）。没有边缘折射、也没有高光描边，
+ *   所以它是毛玻璃，不是液态玻璃；底栏形状与圆角仍由 Miuix 的 `FloatingNavigationBar` 决定。
  * 模糊走 RenderEffect（API 31+，见 [isRenderEffectSupported]），低于门槛时不建 backdrop、
  * 底栏退回不透明配色。
  */
@@ -104,10 +107,10 @@ fun HafApp(state: UiPrefsState) {
     val currentPage = pagerState.currentPage
     var showClearConfirm by remember { mutableStateOf(false) }
 
-    // 能力检测：模糊走 RenderEffect（API 31+）。低于门槛时既不创建 backdrop、也不挂 layerBackdrop，
-    // 省掉每帧一次的图层录制，底栏退回不透明配色。
+    // 能力检测：模糊走 RenderEffect（API 31+）；贴底的普通底栏是不透明的，根本用不到 backdrop。
+    // 任一条件不满足就既不创建 backdrop、也不挂 layerBackdrop，省掉每帧一次的图层录制。
     // isRenderEffectSupported() 在 Android 上只是一次 Build.VERSION.SDK_INT 比较，用不着 remember。
-    val glassSupported = isRenderEffectSupported()
+    val useGlassBar = isRenderEffectSupported() && state.floatingNavBar
     // backdrop 2.0.0 的 rememberLayerBackdrop 把 onDraw 当作 remember 的 key：
     // 传内联 lambda 会在每次重组时重建图层、重置录制定位，所以这里 remember 成稳定引用。
     val backdropDraw: ContentDrawScope.() -> Unit = remember(scheme.surface) {
@@ -119,7 +122,7 @@ fun HafApp(state: UiPrefsState) {
     }
     // 录制侧要用具体类型 LayerBackdrop：Modifier.layerBackdrop() 只接收它；
     // 绘制侧的 drawBackdrop() 收的是 Backdrop 接口，LayerBackdrop 本身就是它的实现。
-    val backdrop: LayerBackdrop? = if (glassSupported) {
+    val backdrop: LayerBackdrop? = if (useGlassBar) {
         rememberLayerBackdrop(onDraw = backdropDraw)
     } else {
         null
@@ -163,11 +166,20 @@ fun HafApp(state: UiPrefsState) {
             )
         },
         bottomBar = {
-            GlassNavigationBar(
-                backdrop = backdrop,
-                currentPage = currentPage,
-                onSelect = { goToPage(it) },
-            )
+            // 两种底栏二选一（设置 → 外观 → 悬浮底栏）：
+            // 开 = 悬浮毛玻璃胶囊；关 = 贴底普通底栏（2.0.0 的形态）。
+            if (state.floatingNavBar) {
+                GlassNavigationBar(
+                    backdrop = backdrop,
+                    currentPage = currentPage,
+                    onSelect = { goToPage(it) },
+                )
+            } else {
+                PlainNavigationBar(
+                    currentPage = currentPage,
+                    onSelect = { goToPage(it) },
+                )
+            }
         },
         snackbarHost = { SnackbarHost(state = snackbarHostState) },
     ) { innerPadding ->
@@ -307,6 +319,32 @@ private fun GlassNavigationBar(
     ) {
         DESTINATIONS.forEachIndexed { index, destination ->
             FloatingNavigationBarItem(
+                selected = currentPage == index,
+                onClick = { onSelect(index) },
+                icon = destination.icon,
+                label = destination.label,
+            )
+        }
+    }
+}
+
+/**
+ * 贴底的普通底栏：直接用 Miuix 的 [NavigationBar]，也就是 2.0.0 的形态 ——
+ * 不透明底色 + 顶部分隔线，每项**图标 + 文字**（`NavigationBarDisplayMode.IconAndText`），
+ * inset 由组件自己处理（`defaultWindowInsetsPadding = true`）。
+ *
+ * 与悬浮版的差别只在"底栏这一块"：内容仍然由各页的 `contentBottomPadding` 让开，
+ * 因为这个底栏是不透明的，内容从它下面滚过看不见、观感与 2.0.0 一致。
+ */
+@Composable
+private fun PlainNavigationBar(
+    currentPage: Int,
+    onSelect: (Int) -> Unit,
+) {
+    NavigationBar {
+        DESTINATIONS.forEachIndexed { index, destination ->
+            // NavigationBarItem 是 RowScope 的扩展，只能写在 NavigationBar 的 content 里。
+            NavigationBarItem(
                 selected = currentPage == index,
                 onClick = { onSelect(index) },
                 icon = destination.icon,

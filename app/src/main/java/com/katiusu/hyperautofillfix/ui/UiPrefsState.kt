@@ -14,6 +14,7 @@ class UiPrefsState(private val prefs: AppPrefs) {
     private var showAllowedState by mutableStateOf(prefs.showAllowed)
     private var rawViewState by mutableStateOf(prefs.rawView)
     private var themeModeState by mutableStateOf(prefs.themeMode)
+    private var floatingNavBarState by mutableStateOf(prefs.floatingNavBar)
 
     var showAllowed: Boolean
         get() = showAllowedState
@@ -35,5 +36,13 @@ class UiPrefsState(private val prefs: AppPrefs) {
         set(value) {
             themeModeState = value
             prefs.themeMode = value
+        }
+
+    /** 底栏形态：true = 悬浮毛玻璃胶囊，false = 贴底普通底栏（2.0.0 的形态）。 */
+    var floatingNavBar: Boolean
+        get() = floatingNavBarState
+        set(value) {
+            floatingNavBarState = value
+            prefs.floatingNavBar = value
         }
 }

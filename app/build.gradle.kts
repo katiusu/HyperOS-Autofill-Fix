@@ -21,8 +21,8 @@ android {
         applicationId = "com.katiusu.hyperautofillfix"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2026100102
-        versionName = "2.1.1"
+        versionCode = 2026100200
+        versionName = "2.2.0"
     }
 
     buildTypes {

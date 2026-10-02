@@ -71,6 +71,13 @@ fun SettingsScreen(
                     selectedIndex = state.themeMode.coerceIn(0, THEME_OPTIONS.lastIndex),
                     onSelectedIndexChange = { state.themeMode = it },
                 )
+                SwitchPreference(
+                    title = "悬浮底栏",
+                    summary = "开：悬浮的毛玻璃胶囊，内容从它后面穿过；" +
+                        "关：贴底普通底栏（2.0.0 的样式，图标带文字标签）",
+                    checked = state.floatingNavBar,
+                    onCheckedChange = { state.floatingNavBar = it },
+                )
             }
         }
 

@@ -2,13 +2,14 @@
 
 ![LSPosed Module](https://img.shields.io/badge/LSPosed-Module-brightgreen.svg)
 ![Android](https://img.shields.io/badge/Android-8.0%2B-blue.svg)
-![Version](https://img.shields.io/badge/version-2.1.1-orange.svg)
+![Version](https://img.shields.io/badge/version-2.2.0-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)
 
 一个用于小米 **HyperOS / MIUI** 的 LSPosed / Xposed 模块，解决系统安全组件反复重置、清空、
 覆盖第三方自动填充服务（Bitwarden、KeePass、1Password 等）的问题。**2.0.0 起自带一个 Miuix
 （HyperOS 设计语言）界面**，可以直接在手机上看状态、看拦截日志、调设置；
-**2.1.0 起底栏换成悬浮的毛玻璃条**（2.1.1 起模糊渲染改用 AndroidLiquidGlass）。
+**2.1.0 起底栏换成悬浮的毛玻璃条**（2.1.1 起模糊渲染改用 AndroidLiquidGlass），
+**2.2.0 起可以在设置里切回 2.0.0 那种贴底普通底栏**。
 
 ---
 
@@ -28,10 +29,12 @@
 - **四层拦截**：比 1.0.0 多一层，补上了旧式 `ContentProvider` 写入通道；
 - **参数自适应**：不写死参数下标，兼容 AOSP / MIUI 不同版本的方法重载；
 - **自带界面**：概览 / 日志 / 设置三页，Miuix + HyperOS 观感，可滑动切换；
-- **悬浮毛玻璃底栏**：2.1.0 起用 `FloatingNavigationBar`（圆角 + 阴影）配合
-  [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass)（`io.github.kyant0:backdrop-android`）
-  的 `vibrancy() + blur()` 做模糊，页面内容从毛玻璃后面穿过；API < 31 自动退回不透明底栏
-  （只有背景模糊 + 一点边缘高光，**没有边缘折射**，所以是"毛玻璃"，不是"液态玻璃"）；
+- **两种底栏可切换**（设置 → 外观 →「悬浮底栏」，默认悬浮）：
+  - **悬浮毛玻璃**（默认）：2.1.0 起用 `FloatingNavigationBar`（圆角 + 阴影）配合
+    [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass)（`io.github.kyant0:backdrop-android`）
+    的 `vibrancy() + blur()` 做模糊，页面内容从毛玻璃后面穿过；API < 31 自动退回不透明底栏
+    （只有背景模糊 + 一点边缘高光，**没有边缘折射**，所以是"毛玻璃"，不是"液态玻璃"）；
+  - **贴底普通底栏**：2.0.0 的形态，Miuix 的 `NavigationBar`，不透明、顶部分隔线、图标带文字标签；
 - **直观 + 原文双视图**：日志既能看排版后的中文说明，也能看与 `adb logcat` 完全一致的原行；
 - **完整日志链路**：被 Hook 进程通过显式广播把事件送到 App，本地落盘（最多 3000 条），
   支持搜索、级别筛选、复制、清空；
@@ -87,7 +90,8 @@ Hook 命中 ──► ModuleLog ──┬─► XposedBridge.log（logcat，标�
 | **日志** | 搜索（进程 / 层次 / 写入值）、全部 / 拦截 / 放行 / 信息筛选、直观与 logcat 原文双视图、顶栏一键清空 |
 | **设置** | 主题下拉、是否记录放行事件、默认视图、复制最近日志、清空日志、关于（含 GitHub 仓库链接）与隐私说明 |
 
-底栏是悬浮的毛玻璃条：内容一直铺到屏幕底部并从它后面穿过，滚动到末端时再让开底栏。
+底栏有两种形态，在「设置 → 外观 → 悬浮底栏」切换：默认是悬浮毛玻璃条（内容一直铺到屏幕底部、
+从它后面穿过，滚动到末端时再让开）；关掉后回到 2.0.0 的贴底普通底栏（不透明、顶部分隔线、图标带文字）。
 
 ---
 
@@ -107,7 +111,7 @@ Hook 命中 ──► ModuleLog ──┬─► XposedBridge.log（logcat，标�
 ## 🚀 安装与使用
 
 1. **下载 APK**：从 [Releases](https://github.com/katiusu/HyperOS-Autofill-Fix/releases) 下载
-   `HyperOS-Autofill-Fix-2.1.1.apk`。
+   `HyperOS-Autofill-Fix-2.2.0.apk`。
 2. **安装**：
    - 如果手机上装的是 **用别的签名** 的旧版（例如 1.0.0），需要先卸载旧版，否则会报
      `INSTALL_FAILED_UPDATE_INCOMPATIBLE`；
@@ -174,12 +178,12 @@ adb logcat -s HyperOSAutofillFix
   避免调用方 `ClassCastException`；
 - **热路径快速失败**：未命中时只做一次字符串比较即返回，零额外分配；
 - **日志限频去重**：同一「层次 + 值」1 秒内只打一条日志 / 只广播一次；
-- **悬浮毛玻璃底栏**：页面容器挂 `Modifier.layerBackdrop` 把内容录进 `GraphicsLayer`，
-  底栏再用 AndroidLiquidGlass 的 `Modifier.drawBackdrop`（`effects = { vibrancy(); blur(...) }`、
-  `highlight = { Highlight.Default }`、`onDrawSurface` 叠一层半透明容器色）贴着同一个圆角形状
-  （取组件的 `FloatingToolbarDefaults.CornerRadius`）做背景模糊，
-  `color = Color.Transparent` 让玻璃透出；`isRenderEffectSupported()` 不通过时
-  完全不创建 backdrop、底栏用 `surfaceContainer` 不透明配色；
+- **底栏的两种形态**：悬浮毛玻璃用 AndroidLiquidGlass 的 `Modifier.drawBackdrop`
+  （`effects = { vibrancy(); blur(...) }`、`highlight = { Highlight.Default }`、
+  `onDrawSurface` 叠一层半透明容器色），形状与圆角取组件的 `FloatingToolbarDefaults.CornerRadius`；
+  贴底普通底栏直接用 Miuix 的 `NavigationBar`（注意 `NavigationBarItem` 是 `RowScope` 的扩展）。
+  关掉悬浮底栏时**不创建 backdrop**（不透明底栏用不到每帧一次的图层录制）；
+  两种形态共用各页的 `contentBottomPadding` 让开底栏；
 - **为什么叫"毛玻璃"而不是"液态玻璃"**：这里只做背景模糊 + 一点边缘高光，
   **没有边缘折射**，也就没有液态玻璃那种把背景"掰弯"的观感；
   真正的液态玻璃需要 AGSL 折射着色器（`RuntimeShader`）+ 描边高光，本版没有做；

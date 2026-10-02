@@ -23,10 +23,16 @@ class AppPrefs private constructor(context: Context) {
         get() = sp.getInt(KEY_THEME, 0)
         set(value) = sp.edit { putInt(KEY_THEME, value) }
 
+    /** 底栏形态：true = 悬浮毛玻璃胶囊，false = 贴底普通底栏（2.0.0 的形态）。 */
+    var floatingNavBar: Boolean
+        get() = sp.getBoolean(KEY_FLOATING_NAV_BAR, true)
+        set(value) = sp.edit { putBoolean(KEY_FLOATING_NAV_BAR, value) }
+
     companion object {
         private const val KEY_SHOW_ALLOWED = "show_allowed"
         private const val KEY_RAW_VIEW = "raw_view"
         private const val KEY_THEME = "theme_mode"
+        private const val KEY_FLOATING_NAV_BAR = "floating_nav_bar"
 
         @Volatile
         private var instance: AppPrefs? = null

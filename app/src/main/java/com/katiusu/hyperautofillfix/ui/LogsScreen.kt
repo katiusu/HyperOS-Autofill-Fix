@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -65,6 +66,7 @@ fun LogsScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
     var filter by rememberSaveable { mutableIntStateOf(FILTER_ALL) }
+    val focusManager = LocalFocusManager.current
 
     val listState = rememberLazyListState()
     val timeFormat = remember { SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()) }
@@ -110,7 +112,11 @@ fun LogsScreen(
                     InputField(
                         query = query,
                         onQueryChange = { query = it },
-                        onSearch = { searchExpanded = false },
+                        // 回车不是"退出搜索"：Miuix 的 InputField 在「收起且仍有焦点」时会主动
+                        // onQueryChange("") 清空 query（SearchBar.kt 的 LaunchedEffect(expanded)），
+                        // 而本页的列表过滤依赖 query —— 一旦收起，关键词和筛选结果会一起消失。
+                        // 因此这里只收键盘，保持展开（在 Miuix 里 expanded 就是"正在搜索"）。
+                        onSearch = { focusManager.clearFocus() },
                         expanded = searchExpanded,
                         onExpandedChange = { searchExpanded = it },
                         label = "搜索进程 / 层次 / 写入值",
@@ -127,10 +133,8 @@ fun LogsScreen(
                     BasicComponent(
                         title = pkg,
                         summary = "只看这个进程的事件",
-                        onClick = {
-                            query = pkg
-                            searchExpanded = false
-                        },
+                        // 同一个坑：收起会被 Miuix 清掉 query，所以选完保持展开，退出搜索交给 Back。
+                        onClick = { query = pkg },
                     )
                 }
             }

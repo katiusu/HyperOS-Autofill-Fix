@@ -19,3 +19,6 @@ captures/
 # 系统
 .DS_Store
 Thumbs.db
+
+# Kotlin 编译会话元数据
+.kotlin/

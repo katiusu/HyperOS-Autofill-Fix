@@ -1,9 +1,11 @@
 pluginManagement {
     repositories {
-        // 国内镜像优先（阿里云），官方仓库留在后面兜底：镜像里暂时没有的构件还能回源。
-        // gradle-plugin 是 plugins.gradle.org 的镜像；google/public 覆盖 AGP、AndroidX、Miuix 等。
-        maven("https://maven.aliyun.com/repository/gradle-plugin")
+        // 国内镜像优先（阿里云）；官方仓库留在后面兜底。
+        // 注意：本容器的 ~/.gradle/init.gradle 会在 settingsEvaluated 里清空并重写
+        // 这里的仓库列表（dl.google.com / repo.maven.apache.org 在容器内不可达），
+        // 所以这份声明主要服务于容器外的正常网络环境。
         maven("https://maven.aliyun.com/repository/google")
+        maven("https://maven.aliyun.com/repository/gradle-plugin")
         maven("https://maven.aliyun.com/repository/public")
         google {
             content {
@@ -19,7 +21,6 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        // 同上：阿里云 google（AGP / AndroidX / Miuix）+ public（Maven Central 等）优先
         maven("https://maven.aliyun.com/repository/google")
         maven("https://maven.aliyun.com/repository/public")
         google()

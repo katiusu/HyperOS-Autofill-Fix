@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- miuix-blur 的 AAR 把 minSdk 写成了 33（内部依赖 RuntimeShader）。
+         这里保留 minSdk 26 以覆盖老 HyperOS / MIUI 设备，用 overrideLibrary 放行：
+         运行时由 isRuntimeShaderSupported() 判断，API 33 以下自动降级为纯色底栏。
+         与同作者的 HyperVolumeStyle 保持一致。 -->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
 
     <application
         android:name=".App"

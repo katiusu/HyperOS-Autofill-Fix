@@ -1,3 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">自动填充修复</string>
+
+    <!-- 底部导航 -->
+    <string name="tab_overview">概览</string>
+    <string name="tab_logs">日志</string>
+    <string name="tab_settings">设置</string>
+    <string name="tab_about">关于</string>
+
+    <!-- 通用动作 / 搜索 -->
+    <string name="action_back">返回</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_confirm">确定</string>
+    <string name="action_refresh">重新读取</string>
+    <string name="search_hint">搜索设置项</string>
+    <string name="search_empty">没有匹配的设置项</string>
+
+    <!-- 外观 -->
+    <string name="settings_interface">外观</string>
+    <string name="theme_mode">主题</string>
+    <string name="theme_mode_summary">选中后立即生效；动态取色在 Android 12+ 生效，不支持时自动回退</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_monet_system">动态取色</string>
+    <string name="theme_monet_light">动态取色（浅色）</string>
+    <string name="theme_monet_dark">动态取色（深色）</string>
+    <string name="floating_navbar">悬浮底栏</string>
+    <string name="floating_navbar_summary">开：悬浮的毛玻璃胶囊，内容从它后面穿过；关：贴底普通底栏，图标带文字标签</string>
+    <string name="liquid_glass">液态玻璃底栏</string>
+    <string name="liquid_glass_summary">在悬浮底栏基础上换成 iOS 风格的液态玻璃，带高光与折射</string>
+    <string name="blur_enabled">背景模糊</string>
+    <string name="blur_enabled_summary">关闭后顶栏与底栏改用纯色，可省电并兼容不支持运行时着色器的设备</string>
+
+    <!-- 日志 -->
+    <string name="settings_logs">日志</string>
+    <string name="show_allowed">记录放行事件</string>
+    <string name="show_allowed_summary">除拦截外，也记录第三方服务自身的合法写入</string>
+    <string name="raw_view">默认显示原文</string>
+    <string name="raw_view_summary">打开日志页时使用 logcat 原文视图，可随时在顶栏切换</string>
+    <string name="copy_logs">复制最近日志</string>
+    <string name="copy_logs_summary">把最近 300 条复制到剪贴板，方便贴到反馈里</string>
+    <string name="copy_logs_done">已复制 %1$d 条日志</string>
+    <string name="copy_logs_empty">还没有日志可复制</string>
+
+    <!-- 数据 -->
+    <string name="settings_data">数据</string>
+    <string name="export_settings">导出设置</string>
+    <string name="export_settings_summary">把外观与日志偏好导出为 JSON 文件</string>
+    <string name="import_settings">导入设置</string>
+    <string name="import_settings_summary">从 JSON 文件恢复外观与日志偏好</string>
+    <string name="import_success">已导入设置</string>
+    <string name="import_failed">导入失败：文件内容不是有效的设置 JSON</string>
+    <string name="export_success">已导出设置</string>
+    <string name="export_failed">导出失败</string>
+    <string name="clear_logs">清空日志</string>
+    <string name="clear_logs_summary">删除本机保存的全部事件记录，无法恢复</string>
+    <string name="clear_logs_dialog_title">清空日志？</string>
+    <string name="clear_logs_dialog_summary">本机保存的全部事件记录都会被删除，且无法恢复。</string>
+    <string name="clear_logs_action">清空</string>
+
+    <!-- 概览 -->
+    <string name="overview_state_title">当前状态</string>
+    <string name="overview_state_unset">未设置自动填充服务</string>
+    <string name="overview_state_miui">已被改回小米自家服务</string>
+    <string name="overview_state_ok">第三方服务正常工作</string>
+    <string name="overview_state_raw_missing">读取不到该设置项</string>
+    <string name="overview_action_open">打开密码与账户</string>
+    <string name="overview_service_title">自动填充服务</string>
+    <string name="overview_stats_title">拦截统计</string>
+    <string name="overview_blocked">已拦截改写</string>
+    <string name="overview_blocked_summary">系统管家想改回小米服务或清空，被本模块丢弃</string>
+    <string name="overview_allowed">放行合法写入</string>
+    <string name="overview_allowed_summary">第三方服务自身或用户主动选择的写入</string>
+    <string name="overview_last_event">最近一条事件</string>
+    <string name="overview_view_logs">查看运行日志</string>
+    <string name="overview_view_logs_summary">直观排版与 logcat 原文可切换</string>
+    <string name="overview_none">暂无</string>
+    <string name="overview_processes_title">模块已载入的进程</string>
+    <string name="overview_processes_empty">还没有收到模块上报</string>
+    <string name="overview_processes_empty_summary">在 LSPosed 中启用本模块、勾选四个作用域并重启手机后，这里会列出已生效的进程</string>
+    <string name="overview_processes_count">已生效进程</string>
+    <string name="overview_processes_count_summary">共 %1$d 个</string>
+    <string name="overview_layers_title">拦截层次</string>
+    <string name="overview_layer_1">Settings.Secure.putString</string>
+    <string name="overview_layer_1_summary">写入方进程内直接拦截</string>
+    <string name="overview_layer_2">SettingsProvider.call(PUT_secure)</string>
+    <string name="overview_layer_2_summary">所有进程写入设置的汇聚点</string>
+    <string name="overview_layer_3">SettingsState.insertSettingLocked</string>
+    <string name="overview_layer_3_summary">设置存储底层兜底，覆盖绕过 call 的直写</string>
+    <string name="overview_layer_4">SettingsProvider.insert / update</string>
+    <string name="overview_layer_4_summary">旧式 ContentProvider 通道</string>
+
+    <!-- 日志页 -->
+    <string name="logs_filter_all">全部</string>
+    <string name="logs_filter_block">拦截</string>
+    <string name="logs_filter_allow">放行</string>
+    <string name="logs_filter_info">信息</string>
+    <string name="logs_search_label">搜索进程 / 层次 / 写入值</string>
+    <string name="logs_summary_total">共 %1$d 条</string>
+    <string name="logs_summary_blocked">拦截 %1$d 条</string>
+    <string name="logs_summary_raw">当前显示 logcat 原文</string>
+    <string name="logs_summary_pretty">当前显示直观排版</string>
+    <string name="logs_empty_filtered">没有符合当前筛选条件的事件，换个级别或清空搜索词试试。</string>
+    <string name="logs_empty_no_events">还没有日志。启用模块并重启后，系统管家每次尝试改写都会在这里出现。</string>
+    <string name="logs_empty_no_allowed">「记录放行事件」已在设置里关闭，放行事件不会被记录，因此这里为空。</string>
+    <string name="logs_level_block">已拦截改写</string>
+    <string name="logs_level_allow">放行合法写入</string>
+    <string name="logs_level_info">模块信息</string>
+    <string name="logs_value_prefix">写入值：%1$s</string>
+    <string name="logs_toggle_raw">切换到 logcat 原文</string>
+    <string name="logs_toggle_pretty">切换到直观视图</string>
+    <string name="logs_clear">清空日志</string>
+    <string name="logs_suggestion_summary">只看这个进程的事件</string>
+
+    <!-- 关于 -->
+    <string name="about_version">版本</string>
+    <string name="about_source_code">GitHub 仓库</string>
+    <string name="about_source_code_summary">github.com/katiusu/HyperOS-Autofill-Fix</string>
+    <string name="about_hook_entry">Hook 入口</string>
+    <string name="about_log_tag">日志标签</string>
+    <string name="about_scope">生效方式</string>
+    <string name="about_scope_summary">在 LSPosed 中启用并勾选 android、com.android.providers.settings、com.android.settings、com.miui.securitycenter，然后重启手机</string>
+    <string name="about_info_title">模块信息</string>
+    <string name="about_privacy_title">隐私说明</string>
+    <string name="about_privacy">拦截事件通过显式广播从被 Hook 的进程送到本应用，只在 /data/data/%1$s 下落盘保存，不联网、不上传。</string>
+    <string name="about_dependencies_title">界面依赖</string>
+    <string name="about_dependency_miuix">Miuix 组件库（Apache-2.0）</string>
+    <string name="about_dependency_haze">Haze 模糊（Apache-2.0）</string>
+    <string name="about_dependency_compose">Jetpack Compose（Apache-2.0）</string>
+    <string name="copyright">HyperOS Autofill Fix</string>
+
+    <!-- 移植组件的公共文案 -->
+    <string name="hook_text_not_set">未设置</string>
+    <string name="hook_text_current">当前值：%1$s</string>
+    <string name="hook_text_default">默认值：%1$s</string>
+    <string name="hook_text_dialog_summary">输入内容</string>
+    <string name="hook_text_placeholder">请输入</string>
+    <string name="hook_slider_current_default">当前 %1$s · 默认 %2$s</string>
+    <string name="hook_slider_dialog_summary">输入数值</string>
+    <string name="hook_slider_dialog_input">数值</string>
+    <string name="hook_slider_dialog_range">范围 %1$s ~ %2$s</string>
+    <string name="hook_slider_restore_default">恢复默认</string>
+    <string name="hook_package_list_count">已选 %1$d 个</string>
+    <string name="hook_package_list_dialog_summary">每行一个包名</string>
+    <string name="hook_package_list_placeholder">未设置</string>
+    <string name="hook_package_list_hint">包名，多个用逗号或换行分隔</string>
 </resources>
